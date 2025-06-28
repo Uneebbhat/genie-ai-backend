@@ -12,7 +12,7 @@ from google import genai
 
 load_dotenv()  # pulls in .env variables
 
-client = genai.Client(api_key="AIzaSyDk7QwgTEsSJIAMidpHsufuO-6BP_DagrM")
+gemini_client = genai.Client(api_key="AIzaSyDk7QwgTEsSJIAMidpHsufuO-6BP_DagrM")
 
 app = Flask(__name__)
 
@@ -26,8 +26,8 @@ app = Flask(__name__)
 MODEL_ID = "gemini-1.5-flash" 
 
 # --- MongoDB ---------------------------------------------------------------
-client = MongoClient("mongodb+srv://uneeb:41o4yvMpBUimnEol@cluster0.7llxmx1.mongodb.net/genie?retryWrites=true&w=majority&appName=Cluster")
-db = client["mydatabase"]
+mongo_client = MongoClient("mongodb+srv://uneeb:41o4yvMpBUimnEol@cluster0.7llxmx1.mongodb.net/genie?retryWrites=true&w=majority&appName=Cluster")
+db = mongo_client["mydatabase"]
 users_collection = db["users"]
 
 
@@ -103,11 +103,11 @@ def chat():
     if session_id and session_id in chat_sessions:
         chat = chat_sessions.get(session_id)
         if not chat:
-            chat = client.chats.create(model=MODEL_ID)
+            chat = gemini_client.chats.create(model=MODEL_ID)
             session_id = str(uuid4())
             chat_sessions[session_id] = chat
     else:
-        chat = client.chats.create(model=MODEL_ID)
+        chat = gemini_client.chats.create(model=MODEL_ID)
         session_id = str(uuid4())
         chat_sessions[session_id] = chat
 
