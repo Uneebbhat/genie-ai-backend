@@ -5,6 +5,8 @@ from uuid import uuid4
 import os
 from dotenv import load_dotenv
 from google import genai
+from datetime import datetime
+
 
 # The client gets the API key from the environment variable `GEMINI_API_KEY`.
 # Remove the following line:
@@ -123,6 +125,14 @@ def chat():
         "session_id": session_id
     }), 200
     
+@app.route("/date", methods=["GET"])
+def get_date():
+    now = datetime.utcnow()
+    return jsonify({
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H:%M:%S"),
+        "timestamp": int(now.timestamp())
+    })
 
 
 # ---------------------------------------------------------------------------
