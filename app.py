@@ -5,7 +5,7 @@ from uuid import uuid4
 import os
 from dotenv import load_dotenv
 from google import genai
-from datetime import datetime
+
 
 
 # The client gets the API key from the environment variable `GEMINI_API_KEY`.
@@ -125,14 +125,33 @@ def chat():
         "session_id": session_id
     }), 200
     
-@app.route("/date", methods=["GET"])
-def get_date():
-    now = datetime.utcnow()
+# ---------------------------------------------------------------------------
+#  UPDATE USERNAME
+# ---------------------------------------------------------------------------
+@app.route("/update", methods=["PUT"])
+def update_username():
+    data = request.get_json(force=True)
+    email = data.get("email")
+    new_username = data.get("username")
+
+    if not email or not new_username:
+        return jsonify({"error": "Email and new username are required"}), 400
+
+    user = users_collection.find_one({"email": email})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Update the username
+    users_collection.update_one(
+        {"email": email},
+        {"$set": {"username": new_username}}
+    )
+
     return jsonify({
-        "date": now.strftime("%Y-%m-%d"),
-        "time": now.strftime("%H:%M:%S"),
-        "timestamp": int(now.timestamp())
-    })
+        "message": "Username updated successfully",
+        "email": email,
+        "new_username": new_username
+    }), 200
 
 
 # ---------------------------------------------------------------------------
