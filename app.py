@@ -6,15 +6,23 @@ import os
 from dotenv import load_dotenv
 from google import genai
 
-
-
-# The client gets the API key from the environment variable `GEMINI_API_KEY`.
+# The client gets the API key from the environment variable GEMINI_API_KEY.
 # Remove the following line:
 # client = genai.Client()
 
 load_dotenv()  # pulls in .env variables
 
-gemini_client = genai.Client(api_key="AIzaSyDk7QwgTEsSJIAMidpHsufuO-6BP_DagrM")
+# Use environment variables for secrets
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MONGO_URI = os.getenv("MONGO_URI")
+DEBUG_MODE = os.getenv("FLASK_DEBUG", "False").lower() == "true"
+
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not set in environment.")
+if not MONGO_URI:
+    raise ValueError("MONGO_URI not set in environment.")
+
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 app = Flask(__name__)
 
@@ -28,7 +36,7 @@ app = Flask(__name__)
 MODEL_ID = "gemini-1.5-flash" 
 
 # --- MongoDB ---------------------------------------------------------------
-mongo_client = MongoClient("mongodb+srv://uneeb:41o4yvMpBUimnEol@cluster0.7llxmx1.mongodb.net/genie?retryWrites=true&w=majority&appName=Cluster")
+mongo_client = MongoClient(MONGO_URI)
 db = mongo_client["mydatabase"]
 users_collection = db["users"]
 
@@ -99,16 +107,11 @@ def chat():
     if not user_text:
         return jsonify({"error": "Message is required"}), 400
 
-    MODEL_ID = "gemini-2.0-flash"
-
     # Retrieve or start a chat session
+    chat = None
     if session_id and session_id in chat_sessions:
         chat = chat_sessions.get(session_id)
-        if not chat:
-            chat = gemini_client.chats.create(model=MODEL_ID)
-            session_id = str(uuid4())
-            chat_sessions[session_id] = chat
-    else:
+    if not chat:
         chat = gemini_client.chats.create(model=MODEL_ID)
         session_id = str(uuid4())
         chat_sessions[session_id] = chat
@@ -124,37 +127,47 @@ def chat():
         "response": assistant_text,
         "session_id": session_id
     }), 200
-    
+
 # ---------------------------------------------------------------------------
-#  UPDATE USERNAME
+#  UPDATE USER PROFILE (name, email, password)
 # ---------------------------------------------------------------------------
-@app.route("/update", methods=["PUT"])
-def update_username():
+@app.route("/update-profile", methods=["POST"])
+def update_profile():
     data = request.get_json(force=True)
-    email = data.get("email")
-    new_username = data.get("username")
+    current_email = data.get("email")  # Use 'email' to identify user
+    new_name = data.get("name")
+    new_email = data.get("new_email")  # If user wants to change email
+    new_password = data.get("password")
 
-    if not email or not new_username:
-        return jsonify({"error": "Email and new username are required"}), 400
+    if not current_email:
+        return jsonify({"error": "Email is required to identify user"}), 400
 
-    user = users_collection.find_one({"email": email})
+    user = users_collection.find_one({"email": current_email})
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Update the username
+    update_fields = {}
+    if new_name:
+        update_fields["username"] = new_name
+    if new_email:
+        update_fields["email"] = new_email
+    if new_password:
+        update_fields["password"] = generate_password_hash(new_password)
+
+    if not update_fields:
+        return jsonify({"error": "No update data provided"}), 400
+
     users_collection.update_one(
-        {"email": email},
-        {"$set": {"username": new_username}}
+        {"email": current_email},
+        {"$set": update_fields}
     )
 
-    return jsonify({
-        "message": "Username updated successfully",
-        "email": email,
-        "new_username": new_username
-    }), 200
+    return jsonify({"message": "Profile updated successfully"}), 200
+
+    
 
 
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     # Never enable debug in production
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=DEBUG_MODE)
