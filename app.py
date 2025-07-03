@@ -5,6 +5,7 @@ from uuid import uuid4
 import os
 from dotenv import load_dotenv
 from google import genai
+from bson.json_util import dumps
 
 # Load environment variables
 load_dotenv()
@@ -122,11 +123,12 @@ def chat():
 # -----------------------------------------------------------------------------
 # Update Profile
 # -----------------------------------------------------------------------------
-@app.route("/update-profile", methods=["POST"])
+@app.route("/update-profile", methods=["PUT"])
 def update_profile():
     data = request.get_json(force=True)
+    print("Received update-profile payload:", data)  # Debug print
     current_email = data.get("email")
-    new_name = data.get("name")
+    new_name = data.get("new_name")
     new_email = data.get("new_email")
     new_password = data.get("password")
 
@@ -154,17 +156,25 @@ def update_profile():
 # -----------------------------------------------------------------------------
 # Get All Users (For Testing/Admin Only)
 # -----------------------------------------------------------------------------
-@app.route("/users", methods=["GET"])
-def get_all_users():
-    users = users_collection.find({}, {"_id": 0, "username": 1, "email": 1, "password": 1})
-    print({
-        "users": list(users),
-        "count": users_collection.count_documents({})
-    })
-    return jsonify({
-        "users": list(users),
-        "count": users_collection.count_documents({})
-    }), 200
+@app.route("/user", methods=["GET"])
+def get_user():
+    """
+    Query‑string contract:  /user?email=someone@example.com
+    In a real system this would be driven by a JWT or session cookie instead.
+    """
+    email = request.args.get("email")
+    if not email:                           # Defensive: missing identifier
+        return jsonify({"error": "email query‑param required"}), 400
+
+    # Exclude internal fields: Mongo _id and hashed password
+    projection = {"_id": 0, "password": 0}
+    user = users_collection.find_one({"email": email}, projection)
+
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Either jsonify(user) or dumps(user) for ObjectId‑safe JSON
+    return jsonify(user), 200
 
 # -----------------------------------------------------------------------------
 # Run the Flask App
