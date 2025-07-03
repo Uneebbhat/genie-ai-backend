@@ -10,7 +10,7 @@ from google import genai
 load_dotenv()
 
 # Get environment variables
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = "AIzaSyDk7QwgTEsSJIAMidpHsufuO-6BP_DagrM"
 MONGO_URI = "mongodb+srv://uneeb:n9QDgw4SwY8dUbvD@cluster0.7llxmx1.mongodb.net/mydatabase?retryWrites=true&w=majority&appName=Cluster0"
 DEBUG_MODE = os.getenv("FLASK_DEBUG", "False").lower() == "true"
 
